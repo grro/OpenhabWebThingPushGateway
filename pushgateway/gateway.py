@@ -7,10 +7,8 @@ import json
 import time
 import logging
 import threading
-import sys
 
-
-class ValueSync:
+class Link:
 
     def __init__(self, webthing_uri, webthing_property, openhab_uri, itemname):
         self.logger = logging.getLogger(webthing_property)
@@ -18,6 +16,8 @@ class ValueSync:
         self.webthing_property = webthing_property
         self.openhab_uri = openhab_uri
         self.itemname = itemname
+
+    def start(self):
         threading.Thread(target=self.__listen).start()
 
     def __listen(self):
@@ -37,7 +37,7 @@ class ValueSync:
                 ws.connect(self.webthing_prop_ws_uri)
                 self.logger.info('websocket ' + self.webthing_prop_ws_uri + ' connected')
                 try:
-                    while (time.time() - start_time) < (10 * 60): # 3 min
+                    while (time.time() - start_time) < (10 * 60):
                         msg = json.loads(ws.recv())
                         if msg['messageType'] == 'propertyStatus':
                             data = msg['data']
@@ -107,13 +107,13 @@ def load_config(filename):
                     parts = line.split(",")
                     config.append((parts[0].strip(), parts[1].strip(), parts[2].strip(), parts[3].strip()))
                 except Exception as e:
-                    logging.warn("invalid syntax in line " + line + "  ignoring it" + str(e))
+                    logging.error("invalid syntax in line " + line + "  ignoring it" + str(e))
     return config
 
 
 def run(filename):
     for config in load_config(filename):
-        ValueSync(config[0], config[1], config[2], config[3])
+        Link(config[0], config[1], config[2], config[3]).start()
 
     while True:
         time.sleep(60)
