@@ -91,6 +91,7 @@ class Link:
 def default_config_file():
     filename = pathlib.Path(os.getcwd(), "gateway.conf")
     if not filename.exists():
+        filename.parent.mkdir(parents=True, exist_ok=True)
         with open(filename, "w") as file:
             file.write("# webthing_root_uri, webthing_property_name, openhab_root_uri, openhab_item_name")
         logging.info("config file " + str(filename) + " generated")
