@@ -11,7 +11,7 @@ DESCRIPTION = "A push gateway sending webthing properties updates to a openhab s
 
 def main():
     parser = argparse.ArgumentParser(description=DESCRIPTION)
-    parser.add_argument('--command', metavar='command', required=True, type=str, help='the command. Supported commands are: listen (run the webthing service), register (register and starts the webthing service as a systemd unit, deregister (deregisters the systemd unit), log (prints the log)')
+    parser.add_argument('--command', metavar='command', required=True, type=str, help='the command. Supported commands are: listen (run the service), register (register and starts the service as a systemd unit, deregister (deregisters the systemd unit), log (prints the log)')
     parser.add_argument('--filename', metavar='filename', required=False, type=str,  help='the config filename')
     args = parser.parse_args()
 
