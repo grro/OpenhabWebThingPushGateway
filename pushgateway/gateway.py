@@ -102,9 +102,12 @@ def load_config(filename):
     with open(filename, "r") as file:
         for line in file.readlines():
             line = line.strip()
-            if not line.startswith("#"):
-                parts = line.split(",")
-                config.append((parts[0].strip(), parts[1].strip(), parts[2].strip(), parts[3].strip()))
+            if not line.startswith("#") and len(line) > 0:
+                try:
+                    parts = line.split(",")
+                    config.append((parts[0].strip(), parts[1].strip(), parts[2].strip(), parts[3].strip()))
+                except Exception as e:
+                    logging.warn("invalid syntax in line " + line + "  ignoring it" + str(e))
     return config
 
 
