@@ -109,7 +109,6 @@ def load_config(filename):
 
 
 def run(filename):
-
     for config in load_config(filename):
         ValueSync(config[0], config[1], config[2], config[3])
 
