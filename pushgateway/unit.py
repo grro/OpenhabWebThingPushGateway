@@ -21,7 +21,7 @@ WantedBy=multi-user.target
 ''')
 
 
-def register(packagename, entrypoint, filename):
+def register(packagename: str, entrypoint: str, filename: str):
     unit = UNIT_TEMPLATE.substitute(packagename=packagename, entrypoint=entrypoint, filename=filename)
     service = packagename + ".service"
     unit_file_fullname = str(pathlib.Path("/", "etc", "systemd", "system", service))
@@ -33,7 +33,7 @@ def register(packagename, entrypoint, filename):
     system("sudo systemctl status " + service)
 
 
-def deregister(packagename):
+def deregister(packagename: str):
     print("deregister " + packagename)
 
     service = packagename + ".service"
@@ -46,6 +46,6 @@ def deregister(packagename):
     except Exception as e:
         pass
 
-def printlog(packagename):
+def printlog(packagename: str):
     service = packagename + ".service"
     system("sudo journalctl -f -u " + service)

@@ -1,21 +1,18 @@
-from urllib.parse import urljoin
-import requests
-import os
-import pathlib
-import websocket
-import json
+from pushgateway.config import load_config
+from pushgateway.webthing import WebthingProperty
+from pushgateway.openhab import OpenhabItem
 import time
 import logging
 import threading
 
-class Link:
 
-    def __init__(self, webthing_uri, webthing_property, openhab_uri, itemname):
-        self.logger = logging.getLogger(webthing_property)
-        self.webthing_uri = webthing_uri
+class WebThingPropertyToOpenhabItemLink:
+
+    def __init__(self, webthing_property: WebthingProperty, openhab_item: OpenhabItem):
+        self.logger = logging.getLogger("webthing." + webthing_property.name)
         self.webthing_property = webthing_property
-        self.openhab_uri = openhab_uri
-        self.itemname = itemname
+        self.openhab_item = openhab_item
+        self.cached_value = None
 
     def start(self):
         threading.Thread(target=self.__listen).start()
@@ -23,99 +20,105 @@ class Link:
     def __listen(self):
         while True:
             try:
-                self.logger.info('connecting webthing ' + self.webthing_property + ' to read meta data..')
-                self.openhab_item_uri = urljoin(self.openhab_uri, '/rest/items/' + self.itemname + '/state')
-                self.webthing_property_type, self.webthing_readonly, self.webthing_prop_uri, self.webthing_prop_ws_uri = self.__read_metadata(self.webthing_uri, self.webthing_property)
-                self.logger.info('webthing property ' + self.webthing_property + " detected (type: " + self.webthing_property_type + ", readonly: " + str(self.webthing_readonly) + ")")
+                # listen for values to forwards
+                stream = self.webthing_property.new_change_listener(self.__on_changed_callback)
+                stream.start()
 
-                self.logger.info('reading current state of webthing property ' + self.webthing_property)
-                current_state = self.__read_property(self.webthing_prop_uri, self.webthing_property)
-                self.__on_webthing_prop_updated(current_state)
+                # set initial state (if changes are coming sporadically)
+                self.openhab_item.state = self.__convert(self.webthing_property.property)
 
-                start_time = time.time()
-                ws = websocket.WebSocket()
-                ws.connect(self.webthing_prop_ws_uri)
-                self.logger.info('websocket ' + self.webthing_prop_ws_uri + ' connected')
-                try:
-                    while (time.time() - start_time) < (10 * 60):
-                        msg = json.loads(ws.recv())
-                        if msg['messageType'] == 'propertyStatus':
-                            data = msg['data']
-                            if self.webthing_property in data.keys():
-                                value = data[self.webthing_property]
-                                self.__on_webthing_prop_updated(value)
-                finally:
-                    self.logger.info('websocket ' + self.webthing_prop_ws_uri + ' disconnected')
-                    ws.close()
+                time.sleep(10 * 60)
+                stream.stop()
             except Exception as e:
-                self.logger.error("error occured for webthing " + self.webthing_property + ": "+ str(e))
+                self.logger.error("error occurred for webthing " + self.webthing_property.name + ": "+ str(e))
                 time.sleep(10)
 
-    def __read_metadata(self, webthing_uri, webthing_property):
-        webthing_meta = requests.get(webthing_uri).json()
-        webthing_type = webthing_meta['properties'][webthing_property]['type']
-        webthing_readonly = webthing_meta['properties'][webthing_property]['readOnly']
-        webthing_prop_uri = None
-        webthing_prop_ws_uri = None
-        for link in webthing_meta['links']:
-            if 'rel' in link.keys():
-                if link['rel'] == 'properties':
-                    webthing_prop_uri = urljoin(webthing_uri, link['href'])
-                elif link['rel'] == 'alternate':
-                    webthing_prop_ws_uri = urljoin(webthing_uri, link['href'])
-        return webthing_type, webthing_readonly, webthing_prop_uri, webthing_prop_ws_uri
+    def __on_changed_callback(self, new_value):
+        item_value = self.__convert(new_value)
+        if self.cached_value != item_value:
+            self.cached_value = item_value
+            self.openhab_item.state = item_value
 
-    def __read_property(self, webthing_prop_uri, propertyname):
-        properties = requests.get(webthing_prop_uri).json()
-        return properties[propertyname]
-
-    def __on_webthing_prop_updated(self, new_value):
-        item_value = self.convert(new_value, self.webthing_property_type)
-        try:
-            resp = requests.put(self.openhab_item_uri, data=str(item_value), headers={'Content-Type': 'text/plain'})
-            resp.raise_for_status()
-            self.logger.info(self.webthing_property + " = " + str(new_value) + " pushed (" + self.webthing_prop_uri + ")")
-        except requests.exceptions.HTTPError as err:
-            self.logger.error("got error by pushing " + self.webthing_property + " = " + str(new_value) + " to " + self.openhab_item_uri + " reason: " + resp.text)
-
-    def convert(self, propertyvalue, targettype):
-        if targettype == 'boolean':
-            if propertyvalue:
+    def __convert(self, property_value):
+        if self.webthing_property.type == 'boolean':
+            if property_value:
                 return "ON"
             else:
                 return "OFF"
         else:
-            return propertyvalue
+            return property_value
 
 
-def default_config_file():
-    filename = pathlib.Path(os.getcwd(), "gateway.conf")
-    if not filename.exists():
-        filename.parent.mkdir(parents=True, exist_ok=True)
-        with open(filename, "w") as file:
-            file.write("# webthing_root_uri, webthing_property_name, openhab_root_uri, openhab_item_name")
-        logging.info("config file " + str(filename) + " generated")
-    return str(filename)
+
+class OpenhabItemToWebThingPropertyLink:
+
+    def __init__(self, webthing_property: WebthingProperty, openhab_item: OpenhabItem):
+        self.logger = logging.getLogger("openhab." + openhab_item.name)
+        self.webthing_property = webthing_property
+        self.openhab_item = openhab_item
+        self.cached_value = None
+
+    def start(self):
+        threading.Thread(target=self.__listen).start()
+
+    def __listen(self):
+        while True:
+            try:
+                # listen for values to forwards
+                stream = self.openhab_item.new_change_listener(self.__on_changed_callback)
+                stream.start()
+
+                # set initial state (if changes are coming sporadically)
+                self.webthing_property.property = self.__convert(self.openhab_item.state)
+
+                time.sleep(10 * 60)
+                stream.stop()
+            except Exception as e:
+                self.logger.error("error occurred for openhab " + self.webthing_property.name + ": "+ str(e))
+                time.sleep(10)
+
+    def __on_changed_callback(self, new_value):
+        property_value = self.__convert(new_value)
+        if self.cached_value != property_value:
+            self.cached_value = property_value
+            self.webthing_property.property = property_value
+
+    def __convert(self, value):
+        source_type = self.openhab_item.type
+        target_type = self.webthing_property.type
+        if source_type == 'switch':
+            return value == 'ON'
+        elif target_type == 'number':
+            return float(value)
+        else:
+            return value
 
 
-def load_config(filename):
-    config = list()
-    with open(filename, "r") as file:
-        for line in file.readlines():
-            line = line.strip()
-            if not line.startswith("#") and len(line) > 0:
-                try:
-                    parts = line.split(",")
-                    config.append((parts[0].strip(), parts[1].strip(), parts[2].strip(), parts[3].strip()))
-                except Exception as e:
-                    logging.error("invalid syntax in line " + line + "  ignoring it" + str(e))
-    return config
+class Link:
+
+    def __init__(self, webthing_uri: str, webthing_property: str, openhab_uri: str, itemname: str):
+        self.webthing_property = WebthingProperty(webthing_uri, webthing_property)
+        self.openhab_item = OpenhabItem(openhab_uri, itemname)
+
+    def start(self):
+        threading.Thread(target=self.__listen).start()
+
+    def __listen(self):
+        if self.openhab_item.writeable:
+            webthing_to_openhab_link = WebThingPropertyToOpenhabItemLink(self.webthing_property, self.openhab_item)
+            webthing_to_openhab_link.start()
+
+        if self.webthing_property.writeable:
+            openhab_to_webthing_link = OpenhabItemToWebThingPropertyLink(self.webthing_property, self.openhab_item)
+            openhab_to_webthing_link.start()
+
+        while True:
+            time.sleep(5)
 
 
-def run(filename):
+def run(filename: str):
     for config in load_config(filename):
-        Link(config[0], config[1], config[2], config[3]).start()
+        Link(config.webthing_root_uri, config.webthing_property_name, config.openhab_root_uri, config.openhab_item_name).start()
 
     while True:
         time.sleep(60)
-

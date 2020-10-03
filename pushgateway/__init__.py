@@ -1,7 +1,7 @@
-import os
 import logging
 import argparse
-from pushgateway.gateway import run, default_config_file
+from pushgateway.gateway import run
+from pushgateway.config import default_config_file
 from pushgateway.unit import register, deregister, printlog
 
 PACKAGENAME = 'pushgateway'

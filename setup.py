@@ -34,7 +34,8 @@ setup(
         'webthings', 'home automation', 'openhab', 'push', 'gateway', 'web socket'
     ],
     install_requires=[
-        'websocket-client'
+        'websocket-client',
+        'sseclient'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
