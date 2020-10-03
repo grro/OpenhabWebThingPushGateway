@@ -3,7 +3,6 @@ from dataclasses import dataclass
 import requests
 import sseclient
 import json
-import logging
 import threading
 import time
 
@@ -18,7 +17,6 @@ class Metadata:
 class ServerSentEventStream:
 
     def __init__(self, openhab_uri: str, itemname: str, on_item_changed_callback):
-        self.logger = logging.getLogger("openhab." + itemname)
         self.itemname = itemname
         self.on_item_changed_callback = on_item_changed_callback
         self.openhab_item_event_uri = urljoin(openhab_uri, '/rest/events?topics=smarthome/items/' + itemname + '/state')
@@ -39,12 +37,12 @@ class ServerSentEventStream:
                         data = json.loads(event.data)
                         payload = json.loads(data['payload'])
                         value = payload['value']
-                        logging.info("openhab item " + self.itemname + " has been updated to " + str(value))
+                        print("openhab item " + self.itemname + " has been updated to " + str(value))
                         self.on_item_changed_callback(value)
                 finally:
                     client.close()
             except Exception as e:
-                self.logger.error("error occurred consuming sse for " + self.itemname + " " + str(e))
+                print("error occurred consuming sse for " + self.itemname + " " + str(e))
                 time.sleep(5)
 
     def stop(self):
@@ -55,7 +53,6 @@ class ServerSentEventStream:
 class OpenhabItem:
 
     def __init__(self, openhab_uri: str, itemname: str):
-        self.logger = logging.getLogger("openhab." + itemname)
         self.openhab_uri = openhab_uri
         self.itemname = itemname
         self.openhab_item_uri = urljoin(self.openhab_uri, '/rest/items/' + self.itemname)
@@ -63,7 +60,7 @@ class OpenhabItem:
 
     def metadata(self) -> Metadata:
         if self.__metadata is None:
-            self.logger.info('openhab item ' + self.name + ' fetching meta data')
+            print('openhab item ' + self.name + ' fetching meta data')
             resp = requests.get(self.openhab_item_uri)
             resp.raise_for_status()
             data = json.loads(resp.text)
@@ -72,7 +69,7 @@ class OpenhabItem:
             if 'stateDescription' in data.keys():
                 readonly = data['stateDescription']['readOnly']
             self.__metadata = Metadata(self.name, type, readonly)
-            self.logger.info('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
+            print('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
         return self.__metadata
 
     @property
@@ -93,19 +90,19 @@ class OpenhabItem:
             resp = requests.get(self.openhab_item_uri + '/state')
             resp.raise_for_status()
             value = resp.text
-            logging.info("openhab item " + self.itemname + " read " + str(value))
+            print("openhab item " + self.itemname + " read " + str(value))
             return value
         except requests.exceptions.HTTPError as err:
-            self.logger.error("got error by reading openhab item " + self.itemname + " reason: " + resp.text)
+            print("got error by reading openhab item " + self.itemname + " reason: " + resp.text)
 
     @state.setter
     def state(self, value):
         try:
-            logging.info("writing openhab item " + self.itemname + " with " + str(value))
+            print("writing openhab item " + self.itemname + " with " + str(value))
             resp = requests.put(self.openhab_item_uri + '/state', data=str(value), headers={'Content-Type': 'text/plain'})
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.logger.error("got error by writing openhab item " + self.itemname + " = " + str(value) + " reason: " + resp.text)
+            print("got error by writing openhab item " + self.itemname + " = " + str(value) + " reason: " + resp.text)
 
     def new_change_listener(self, on_changed_callback) -> ServerSentEventStream:
         return ServerSentEventStream(self.openhab_uri, self.itemname, on_changed_callback)

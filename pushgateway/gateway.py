@@ -2,14 +2,12 @@ from pushgateway.config import load_config
 from pushgateway.webthing import WebthingProperty
 from pushgateway.openhab import OpenhabItem
 import time
-import logging
 import threading
 
 
 class WebThingPropertyToOpenhabItemLink:
 
     def __init__(self, webthing_property: WebthingProperty, openhab_item: OpenhabItem):
-        self.logger = logging.getLogger("webthing." + webthing_property.name)
         self.webthing_property = webthing_property
         self.openhab_item = openhab_item
         self.cached_value = None
@@ -30,7 +28,7 @@ class WebThingPropertyToOpenhabItemLink:
                 time.sleep(10 * 60)
                 stream.stop()
             except Exception as e:
-                self.logger.error("error occurred for webthing " + self.webthing_property.name + ": "+ str(e))
+                print("error occurred for webthing " + self.webthing_property.name + ": "+ str(e))
                 time.sleep(10)
 
     def __on_changed_callback(self, new_value):
@@ -53,7 +51,6 @@ class WebThingPropertyToOpenhabItemLink:
 class OpenhabItemToWebThingPropertyLink:
 
     def __init__(self, webthing_property: WebthingProperty, openhab_item: OpenhabItem):
-        self.logger = logging.getLogger("openhab." + openhab_item.name)
         self.webthing_property = webthing_property
         self.openhab_item = openhab_item
         self.cached_value = None
@@ -74,7 +71,7 @@ class OpenhabItemToWebThingPropertyLink:
                 time.sleep(10 * 60)
                 stream.stop()
             except Exception as e:
-                self.logger.error("error occurred for openhab " + self.webthing_property.name + ": "+ str(e))
+                print("error occurred for openhab " + self.webthing_property.name + ": "+ str(e))
                 time.sleep(10)
 
     def __on_changed_callback(self, new_value):
