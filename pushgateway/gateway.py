@@ -85,8 +85,10 @@ class OpenhabItemToWebThingPropertyLink:
         target_type = self.webthing_property.type
         if source_type == 'switch':
             return value == 'ON'
-        elif target_type == 'number' or target_type == 'integer':
+        elif target_type == 'number':
             return float(value)
+        elif  target_type == 'integer':
+            return int(value)
         else:
             return value
 
