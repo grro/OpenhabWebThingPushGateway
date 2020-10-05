@@ -37,12 +37,13 @@ class ServerSentEventStream:
                         data = json.loads(event.data)
                         payload = json.loads(data['payload'])
                         value = payload['value']
-                        print("openhab item " + self.itemname + " has been updated to " + str(value))
                         self.on_item_changed_callback(value)
                 finally:
+                    print("closing openhab item " + self.itemname + " sse stream")
                     client.close()
+                    response.close()
             except Exception as e:
-                print("error occurred consuming sse for " + self.itemname + " " + str(e))
+                print("error occurred consuming sse for " + self.itemname + " (" + self.openhab_item_event_uri + ") " + str(e))
                 time.sleep(5)
 
     def stop(self):
@@ -68,6 +69,7 @@ class OpenhabItem:
             type = data['type'].lower()
             readonly = False
             self.__metadata = Metadata(self.name, type, readonly)
+            resp.close()
             #print('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
             print('openhab item ' + self.name + " meta data loaded:  " + str(self.__metadata))
         return self.__metadata
@@ -90,6 +92,7 @@ class OpenhabItem:
             resp = requests.get(self.openhab_item_uri + '/state')
             resp.raise_for_status()
             value = resp.text
+            resp.close()
             print("openhab item " + self.itemname + " read " + str(value))
             return value
         except requests.exceptions.HTTPError as err:
@@ -102,6 +105,7 @@ class OpenhabItem:
             print("writing openhab item " + self.itemname + " with " + str(value))
             resp = requests.put(uri, data=str(value), headers={'Content-Type': 'text/plain'})
             resp.raise_for_status()
+            resp.close()
         except requests.exceptions.HTTPError as err:
             print("got error by writing openhab item " + self.itemname + " = " + str(value) + " using " + uri +  " reason: " + resp.text)
 

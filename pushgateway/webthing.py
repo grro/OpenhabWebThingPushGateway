@@ -47,7 +47,7 @@ class WebSocketStream:
                     print('websocket ' + self.metadata.prop_ws_uri + ' disconnected')
                     ws.close()
             except Exception as e:
-                print("error occurred consuming web socket for " + self.metadata.name + " " + str(e))
+                print("error occurred consuming web socket for " + self.metadata.name  + " (" + self.metadata.prop_ws_uri + ") " + str(e))
                 time.sleep(5)
 
     def stop(self):
@@ -66,7 +66,8 @@ class WebthingProperty:
     def metadata(self) -> Metadata:
         if self.__metadata is None:
             print('webthing property ' + self.__webthing_property + ' fetching meta data')
-            webthing_meta = requests.get(self.__webthing_uri).json()
+            response = requests.get(self.__webthing_uri)
+            webthing_meta = response.json()
             props = webthing_meta['properties'][self.__webthing_property]
             webthing_type = props['type']
             if 'readOnly' in props.keys():
@@ -86,6 +87,7 @@ class WebthingProperty:
                     elif link['rel'] == 'alternate':
                         webthing_prop_ws_uri = urljoin(self.__webthing_uri, link['href'])
             self.__metadata = Metadata(self.__webthing_property, webthing_type, webthing_readonly, webthing_prop_uri, webthing_prop_ws_uri)
+            response.close()
             print('webthing property ' + self.__webthing_property + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
         return self.__metadata
 
@@ -103,8 +105,10 @@ class WebthingProperty:
 
     @property
     def property(self):
-        properties = requests.get(self.metadata().prop_uri).json()
+        response = requests.get(self.metadata().prop_uri)
+        properties = response.json()
         value =  properties[self.metadata().name]
+        response.close()
         print("webthing property " + self.metadata().name + " read " + str(value))
         return value
 
@@ -115,6 +119,7 @@ class WebthingProperty:
             body = json.dumps({ self.metadata().name: value }, indent=2)
             resp = requests.put(self.metadata().prop_uri, data=body, headers={'Content-Type': 'application/json'})
             resp.raise_for_status()
+            resp.close()
         except requests.exceptions.HTTPError as err:
             print("got error by writing webthing property " + self.name + " = " + str(value) + " using " + self.metadata().prop_uri + " reason: " + resp.text)
 
