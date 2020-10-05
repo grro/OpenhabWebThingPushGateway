@@ -2,6 +2,8 @@ import argparse
 from pushgateway.gateway import run
 from pushgateway.config import default_config_file
 from pushgateway.unit import register, deregister, printlog
+import logging
+import os
 
 PACKAGENAME = 'pushgateway'
 ENTRY_POINT = "pushgateway"
@@ -20,19 +22,21 @@ def main():
         filename = args.filename
 
     if args.command == 'listen':
-        print("running " + PACKAGENAME + " with config " + filename)
+        logging.info("running " + PACKAGENAME + " with config " + filename)
         run(filename)
     elif args.command == 'register':
-        print("register " + PACKAGENAME + " with config " + filename)
+        logging.info("register " + PACKAGENAME + " with config " + filename)
         register(PACKAGENAME, ENTRY_POINT, filename)
     elif args.command == 'deregister':
         deregister(PACKAGENAME)
     elif args.command == 'log':
-        printlog(PACKAGENAME)
+        logging.info(PACKAGENAME)
     else:
-        print("usage " + ENTRY_POINT + " --help")
+        logging.info("usage " + ENTRY_POINT + " --help")
 
 
 if __name__ == '__main__':
+    log_level = os.environ.get("LOGLEVEL", "INFO")
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=log_level, datefmt='%Y-%m-%d %H:%M:%S')
     main()
 

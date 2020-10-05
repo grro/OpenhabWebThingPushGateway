@@ -5,6 +5,7 @@ import websocket
 import json
 import time
 import threading
+import logging
 
 
 @dataclass
@@ -34,20 +35,20 @@ class WebSocketStream:
                 ws = websocket.WebSocket()
                 try:
                     ws.connect(self.metadata.prop_ws_uri)
-                    print('webthing property ' + self.metadata.name + ' websocket ' + self.metadata.prop_ws_uri + ' connected')
+                    logging.info('webthing property ' + self.metadata.name + ' websocket ' + self.metadata.prop_ws_uri + ' connected')
                     while self.is_running:
                         msg = json.loads(ws.recv())
                         if msg['messageType'] == 'propertyStatus':
                             data = msg['data']
                             if self.metadata.name in data.keys():
                                 value = data[self.metadata.name]
-                                print("webthing property " + self.metadata.name + " has been updated to " + str(value))
+                                logging.info("webthing property " + self.metadata.name + " has been updated to " + str(value))
                                 self.on_property_changed_callback(value)
                 finally:
-                    print('websocket ' + self.metadata.prop_ws_uri + ' disconnected')
+                    logging.info('websocket ' + self.metadata.prop_ws_uri + ' disconnected')
                     ws.close()
             except Exception as e:
-                print("error occurred consuming web socket for " + self.metadata.name  + " (" + self.metadata.prop_ws_uri + ") " + str(e))
+                logging.error("error occurred consuming web socket for " + self.metadata.name  + " (" + self.metadata.prop_ws_uri + ") " + str(e))
                 time.sleep(5)
 
     def stop(self):
@@ -61,11 +62,9 @@ class WebthingProperty:
         self.__webthing_uri = webthing_uri
         self.__webthing_property = webthing_property
         self.__metadata = None
-        print("webthing property proxy created for " + self.__webthing_property + " (webthing uri " + self.__webthing_uri + ")")
 
     def metadata(self) -> Metadata:
         if self.__metadata is None:
-            print('webthing property ' + self.__webthing_property + ' fetching meta data')
             response = requests.get(self.__webthing_uri)
             webthing_meta = response.json()
             props = webthing_meta['properties'][self.__webthing_property]
@@ -88,7 +87,7 @@ class WebthingProperty:
                         webthing_prop_ws_uri = urljoin(self.__webthing_uri, link['href'])
             self.__metadata = Metadata(self.__webthing_property, webthing_type, webthing_readonly, webthing_prop_uri, webthing_prop_ws_uri)
             response.close()
-            print('webthing property ' + self.__webthing_property + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
+            logging.info('webthing property ' + self.__webthing_property + " meta data loaded: " + str(self.__metadata))
         return self.__metadata
 
     @property
@@ -109,19 +108,19 @@ class WebthingProperty:
         properties = response.json()
         value =  properties[self.metadata().name]
         response.close()
-        print("webthing property " + self.metadata().name + " read " + str(value))
+        logging.info("webthing property " + self.metadata().name + " read " + str(value))
         return value
 
     @property.setter
     def property(self, value):
         try:
-            print("writing webthing property " + self.name + " with " + str(value))
+            logging.info("writing webthing property " + self.name + " with " + str(value))
             body = json.dumps({ self.metadata().name: value }, indent=2)
             resp = requests.put(self.metadata().prop_uri, data=body, headers={'Content-Type': 'application/json'})
             resp.raise_for_status()
             resp.close()
         except requests.exceptions.HTTPError as err:
-            print("got error by writing webthing property " + self.name + " = " + str(value) + " using " + self.metadata().prop_uri + " reason: " + resp.text)
+            logging.error("got error by writing webthing property " + self.name + " = " + str(value) + " using " + self.metadata().prop_uri + " reason: " + resp.text)
 
     def new_change_listener(self, on_changed_callback) -> WebSocketStream:
         return WebSocketStream(self.metadata(), on_changed_callback)

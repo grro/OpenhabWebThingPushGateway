@@ -3,6 +3,7 @@ from pushgateway.webthing import WebthingProperty
 from pushgateway.openhab import OpenhabItem
 import time
 import threading
+import logging
 
 
 class WebThingPropertyToOpenhabItemLink:
@@ -28,7 +29,7 @@ class WebThingPropertyToOpenhabItemLink:
                 time.sleep(10 * 60)
                 stream.stop()
             except Exception as e:
-                print("error occurred for webthing " + self.webthing_property.name + ": "+ str(e))
+                logging.error("error occurred for webthing " + self.webthing_property.name + ": "+ str(e))
                 time.sleep(10)
 
     def __on_changed_callback(self, new_value):
@@ -71,7 +72,7 @@ class OpenhabItemToWebThingPropertyLink:
                 time.sleep(10 * 60)
                 stream.stop()
             except Exception as e:
-                print("error occurred for openhab " + self.webthing_property.name + ": "+ str(e))
+                logging.error("error occurred for openhab " + self.webthing_property.name + ": "+ str(e))
                 time.sleep(10)
 
     def __on_changed_callback(self, new_value):
@@ -99,9 +100,9 @@ class Link:
         self.webthing_property = WebthingProperty(webthing_uri, webthing_property)
         self.openhab_item = OpenhabItem(openhab_uri, itemname)
         if self.webthing_property.writeable:
-            print("Forward  Link openhab item " + self.openhab_item.itemname + " -> webthing property " + self.webthing_property.name + " created")
+            logging.info("Forward  Link openhab item " + self.openhab_item.itemname + " -> webthing property " + self.webthing_property.name + " created")
         else:
-            print("Backward link openhab item " + self.openhab_item.itemname + " <- webthing property " + self.webthing_property.name + " created")
+            logging.info("Backward link openhab item " + self.openhab_item.itemname + " <- webthing property " + self.webthing_property.name + " created")
 
     def start(self):
         threading.Thread(target=self.__listen).start()
@@ -120,7 +121,7 @@ class Link:
 
 def run(filename: str):
     configs = load_config(filename)
-    print("config file " + filename + " loaded. " + str(len(configs)) + " entries found")
+    logging.info("config file " + filename + " loaded. " + str(len(configs)) + " entries found")
     for config in configs:
         Link(config.webthing_root_uri, config.webthing_property_name, config.openhab_root_uri, config.openhab_item_name).start()
 
