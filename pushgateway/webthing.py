@@ -61,6 +61,7 @@ class WebthingProperty:
         self.__webthing_uri = webthing_uri
         self.__webthing_property = webthing_property
         self.__metadata = None
+        print("webthing property proxy created for " + self.__webthing_property + " (webthing uri " + self.__webthing_uri + ")")
 
     def metadata(self) -> Metadata:
         if self.__metadata is None:
@@ -115,7 +116,7 @@ class WebthingProperty:
             resp = requests.put(self.metadata().prop_uri, data=body, headers={'Content-Type': 'application/json'})
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            print("got error by webthing property " + self.name + " = " + str(value) + " reason: " + resp.text)
+            print("got error by writing webthing property " + self.name + " = " + str(value) + " using " + self.metadata().prop_uri + " reason: " + resp.text)
 
     def new_change_listener(self, on_changed_callback) -> WebSocketStream:
         return WebSocketStream(self.metadata(), on_changed_callback)

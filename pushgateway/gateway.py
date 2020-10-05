@@ -98,6 +98,10 @@ class Link:
     def __init__(self, webthing_uri: str, webthing_property: str, openhab_uri: str, itemname: str):
         self.webthing_property = WebthingProperty(webthing_uri, webthing_property)
         self.openhab_item = OpenhabItem(openhab_uri, itemname)
+        if self.webthing_property.writeable:
+            print("Forward  Link openhab item " + self.openhab_item.itemname + " -> webthing property " + self.webthing_property.name + " created")
+        else:
+            print("Backward link openhab item " + self.openhab_item.itemname + " <- webthing property " + self.webthing_property.name + " created")
 
     def start(self):
         threading.Thread(target=self.__listen).start()
@@ -111,11 +115,13 @@ class Link:
             webthing_to_openhab_link.start()
 
         while True:
-            time.sleep(5)
+            time.sleep(10)
 
 
 def run(filename: str):
-    for config in load_config(filename):
+    configs = load_config(filename)
+    print("config file " + filename + " loaded. " + str(len(configs)) + " entries found")
+    for config in configs:
         Link(config.webthing_root_uri, config.webthing_property_name, config.openhab_root_uri, config.openhab_item_name).start()
 
     while True:

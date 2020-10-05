@@ -57,6 +57,7 @@ class OpenhabItem:
         self.itemname = itemname
         self.openhab_item_uri = urljoin(self.openhab_uri, '/rest/items/' + self.itemname)
         self.__metadata = None
+        print("openhab item proxy created for " + itemname + " (item uri " + self.openhab_item_uri + ")")
 
     def metadata(self) -> Metadata:
         if self.__metadata is None:
@@ -67,7 +68,8 @@ class OpenhabItem:
             type = data['type'].lower()
             readonly = False
             self.__metadata = Metadata(self.name, type, readonly)
-            print('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
+            #print('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
+            print('openhab item ' + self.name + " meta data loaded:  " + str(self.__metadata))
         return self.__metadata
 
     @property
@@ -95,12 +97,13 @@ class OpenhabItem:
 
     @state.setter
     def state(self, value):
+        uri = self.openhab_item_uri + '/state'
         try:
             print("writing openhab item " + self.itemname + " with " + str(value))
-            resp = requests.put(self.openhab_item_uri + '/state', data=str(value), headers={'Content-Type': 'text/plain'})
+            resp = requests.put(uri, data=str(value), headers={'Content-Type': 'text/plain'})
             resp.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            print("got error by writing openhab item " + self.itemname + " = " + str(value) + " reason: " + resp.text)
+            print("got error by writing openhab item " + self.itemname + " = " + str(value) + " using " + uri +  " reason: " + resp.text)
 
     def new_change_listener(self, on_changed_callback) -> ServerSentEventStream:
         return ServerSentEventStream(self.openhab_uri, self.itemname, on_changed_callback)
