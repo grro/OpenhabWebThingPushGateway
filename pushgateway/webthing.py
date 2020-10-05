@@ -66,13 +66,21 @@ class WebthingProperty:
         if self.__metadata is None:
             print('webthing property ' + self.__webthing_property + ' fetching meta data')
             webthing_meta = requests.get(self.__webthing_uri).json()
-            webthing_type = webthing_meta['properties'][self.__webthing_property]['type']
-            webthing_readonly = webthing_meta['properties'][self.__webthing_property]['readOnly']
+            props = webthing_meta['properties'][self.__webthing_property]
+            webthing_type = props['type']
+            if 'readOnly' in props.keys():
+                webthing_readonly = props['readOnly']
+            else:
+                webthing_readonly = False
             webthing_prop_uri = None
+            for link in props['links']:
+                if 'rel' in link.keys():
+                    if link['rel'] == 'property':
+                        webthing_prop_uri = urljoin(self.__webthing_uri, link['href'])
             webthing_prop_ws_uri = None
             for link in webthing_meta['links']:
                 if 'rel' in link.keys():
-                    if link['rel'] == 'properties':
+                    if link['rel'] == 'property':
                         webthing_prop_uri = urljoin(self.__webthing_uri, link['href'])
                     elif link['rel'] == 'alternate':
                         webthing_prop_ws_uri = urljoin(self.__webthing_uri, link['href'])

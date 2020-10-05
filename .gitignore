@@ -130,3 +130,4 @@ dmypy.json
 /OpenhabWebThingPushGateway.iml
 /.idea
 /pushgateway/gateway.conf
+/gateway.conf

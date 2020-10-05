@@ -65,9 +65,7 @@ class OpenhabItem:
             resp.raise_for_status()
             data = json.loads(resp.text)
             type = data['type'].lower()
-            readonly = True
-            if 'stateDescription' in data.keys():
-                readonly = data['stateDescription']['readOnly']
+            readonly = False
             self.__metadata = Metadata(self.name, type, readonly)
             print('openhab item ' + self.name + " meta data loaded (type: " + self.__metadata.type + ", readonly: " + str(self.__metadata.readonly) + ")")
         return self.__metadata

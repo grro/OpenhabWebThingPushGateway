@@ -85,7 +85,7 @@ class OpenhabItemToWebThingPropertyLink:
         target_type = self.webthing_property.type
         if source_type == 'switch':
             return value == 'ON'
-        elif target_type == 'number':
+        elif target_type == 'number' or target_type == 'integer':
             return float(value)
         else:
             return value
@@ -101,13 +101,12 @@ class Link:
         threading.Thread(target=self.__listen).start()
 
     def __listen(self):
-        if self.openhab_item.writeable:
-            webthing_to_openhab_link = WebThingPropertyToOpenhabItemLink(self.webthing_property, self.openhab_item)
-            webthing_to_openhab_link.start()
-
         if self.webthing_property.writeable:
             openhab_to_webthing_link = OpenhabItemToWebThingPropertyLink(self.webthing_property, self.openhab_item)
             openhab_to_webthing_link.start()
+        else:
+            webthing_to_openhab_link = WebThingPropertyToOpenhabItemLink(self.webthing_property, self.openhab_item)
+            webthing_to_openhab_link.start()
 
         while True:
             time.sleep(5)
