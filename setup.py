@@ -35,7 +35,7 @@ setup(
     ],
     install_requires=[
         'websocket-client',
-        'sseclient'
+        'sseclient-py'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",
