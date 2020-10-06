@@ -19,10 +19,10 @@ class Metadata:
 
 class ServerSentEventStream:
 
-    def __init__(self, item_event_uri: str, itemname: str, on_item_changed_callback):
-        self.itemname = itemname
+    def __init__(self, openhab_item, on_item_changed_callback):
+        self.logger = logging.getLogger(openhab_item.metadata.name)
+        self.openhab_item = openhab_item
         self.on_item_changed_callback = on_item_changed_callback
-        self.item_event_uri = item_event_uri
         self.is_running = True
         self.thread = None
 
@@ -33,9 +33,13 @@ class ServerSentEventStream:
     def __listen(self):
         while self.is_running:
             try:
-                logging.info("opening openhab item " + self.itemname + " sse stream (" + self.item_event_uri + ")")
-                response = requests.get(self.item_event_uri, stream=True)
+                self.logger.info("opening sse stream (" + self.openhab_item.metadata.item_changed_event_uri + ")")
+                response = requests.get(self.openhab_item.metadata.item_changed_event_uri, stream=True)
                 client = sseclient.SSEClient(response)
+
+                # set initial state (if changes are coming sporadically)
+                self.on_item_changed_callback(self.openhab_item.state)
+
                 try:
                     for event in client.events():
                         data = json.loads(event.data)
@@ -43,11 +47,11 @@ class ServerSentEventStream:
                         value = payload['value']
                         self.on_item_changed_callback(value)
                 finally:
-                    logging.info("closing openhab item " + self.itemname + " sse stream")
+                    self.logger.info("closing sse stream")
                     client.close()
                     response.close()
             except Exception as e:
-                logging.error("error occurred consuming sse for " + self.itemname + " (" + self.item_event_uri + ") " + str(e))
+                self.logger.error("error occurred consuming sse for " + self.openhab_item.metadata.name + " (" + self.openhab_item.metadata.item_changed_event_uri + ") " + str(e))
                 time.sleep(5)
 
     def stop(self):
@@ -58,60 +62,50 @@ class ServerSentEventStream:
 class OpenhabItem:
 
     def __init__(self, openhab_uri: str, itemname: str):
-        self.openhab_uri = openhab_uri
-        self.itemname = itemname
+        self.logger = logging.getLogger(itemname)
+        self.__openhab_uri = openhab_uri
+        self.__itemname = itemname
         self.__metadata = None
 
+    @property
     def metadata(self) -> Metadata:
         if self.__metadata is None:
-            item_uri = urljoin(self.openhab_uri, '/rest/items/' + self.itemname)
+            item_uri = urljoin(self.__openhab_uri, '/rest/items/' + self.__itemname)
             resp = requests.get(item_uri)
             resp.raise_for_status()
             data = json.loads(resp.text)
             type = data['type'].lower()
             readonly = False
-            item_changed_event_uri = urljoin(self.openhab_uri, '/rest/events?topics=smarthome/items/' + self.itemname + '/statechanged')
-            self.__metadata = Metadata(self.name, type, readonly, item_uri, item_changed_event_uri)
+            item_changed_event_uri = urljoin(self.__openhab_uri, '/rest/events?topics=smarthome/items/' + self.__itemname + '/statechanged')
+            self.__metadata = Metadata(self.__itemname, type, readonly, item_uri, item_changed_event_uri)
             resp.close()
-            logging.info('openhab item ' + self.name + " meta data loaded:  " + str(self.__metadata))
+            self.logger.info("meta data loaded:  " + str(self.__metadata))
         return self.__metadata
-
-    @property
-    def type(self) -> str:
-        return self.metadata().type
-
-    @property
-    def writeable(self) -> bool:
-        return not self.metadata().readonly
-
-    @property
-    def name(self) -> str:
-        return self.itemname
 
     @property
     def state(self):
         try:
-            resp = requests.get(self.metadata().item_uri + '/state')
+            resp = requests.get(self.metadata.item_uri + '/state')
             resp.raise_for_status()
             value = resp.text
             resp.close()
-            logging.info("openhab item " + self.itemname + " read " + str(value))
+            self.logger.info("read " + str(value))
             return value
         except requests.exceptions.HTTPError as err:
-            logging.info("got error by reading openhab item " + self.itemname + " reason: " + resp.text)
+            self.logger.info("got error by reading. reason: " + resp.text)
 
     @state.setter
     def state(self, value):
-        uri = self.metadata().item_uri + '/state'
+        uri = self.metadata.item_uri + '/state'
         try:
-            logging.info("writing openhab item " + self.itemname + " with " + str(value))
+            self.logger.info("writing " + str(value))
             resp = requests.put(uri, data=str(value), headers={'Content-Type': 'text/plain'})
             resp.raise_for_status()
             resp.close()
         except requests.exceptions.HTTPError as err:
-            logging.error("got error by writing openhab item " + self.itemname + " = " + str(value) + " using " + uri +  " reason: " + resp.text)
+            self.logger.error("got error by writing " + str(value) + " using " + uri +  " reason: " + resp.text)
 
     def new_change_listener(self, on_changed_callback) -> ServerSentEventStream:
-        return ServerSentEventStream(self.metadata().item_changed_event_uri, self.itemname, on_changed_callback)
+        return ServerSentEventStream(self, on_changed_callback)
 
 

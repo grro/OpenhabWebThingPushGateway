@@ -22,21 +22,27 @@ def main():
         filename = args.filename
 
     if args.command == 'listen':
-        logging.info("running " + PACKAGENAME + " with config " + filename)
-        run(filename)
+        if filename is None:
+            logging.info("--filename has to be set")
+        else:
+            logging.info("running " + PACKAGENAME + " with config " + filename)
+            run(filename)
     elif args.command == 'register':
-        logging.info("register " + PACKAGENAME + " with config " + filename)
-        register(PACKAGENAME, ENTRY_POINT, filename)
+        if filename is None:
+            logging.info("--filename has to be set")
+        else:
+            logging.info("register " + PACKAGENAME + " with config " + filename)
+            register(PACKAGENAME, ENTRY_POINT, filename)
     elif args.command == 'deregister':
         deregister(PACKAGENAME)
     elif args.command == 'log':
-        logging.info(PACKAGENAME)
+        printlog(PACKAGENAME)
     else:
         logging.info("usage " + ENTRY_POINT + " --help")
 
 
 if __name__ == '__main__':
     log_level = os.environ.get("LOGLEVEL", "INFO")
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=log_level, datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(format='%(asctime)s %(name)-30s: %(levelname)-8s %(message)s', level=log_level, datefmt='%Y-%m-%d %H:%M:%S')
     main()
 
