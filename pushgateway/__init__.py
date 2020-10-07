@@ -42,7 +42,10 @@ def main():
 
 
 if __name__ == '__main__':
-    log_level = os.environ.get("LOGLEVEL", "INFO")
-    logging.basicConfig(format='%(asctime)s %(name)-30s: %(levelname)-8s %(message)s', level=logging.getLevelName(log_level), datefmt='%Y-%m-%d %H:%M:%S')
+    logFormatter = logging.Formatter("%(asctime)s %(name)-30s: %(levelname)-8s %(message)s", datefmt='%Y-%m-%d %H:%M:%S')
+    consoleHandler = logging.StreamHandler()
+    consoleHandler.setFormatter(logFormatter)
+    logging.getLogger().addHandler(consoleHandler)
+    logging.getLogger().setLevel(logging.INFO)
     main()
 
