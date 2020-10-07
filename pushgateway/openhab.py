@@ -99,6 +99,7 @@ class OpenhabItem:
         uri = self.metadata.item_uri + '/state'
         try:
             self.logger.info("writing " + str(value))
+            print(self.__itemname + " writing " + str(value), flush=True)
             resp = requests.put(uri, data=str(value), headers={'Content-Type': 'text/plain'})
             resp.raise_for_status()
             resp.close()
