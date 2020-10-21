@@ -115,7 +115,10 @@ def run(filename: str):
     configs = load_config(filename)
     logging.info("config file " + filename + " loaded. " + str(len(configs)) + " entries found")
     for config in configs:
-        Link(config.webthing_root_uri, config.webthing_property_name, config.openhab_root_uri, config.openhab_item_name).start()
+        try:
+            Link(config.webthing_root_uri, config.webthing_property_name, config.openhab_root_uri, config.openhab_item_name).start()
+        except Exception as e:
+            logging.error("error occurredbe seting up link", e);
 
     while True:
         time.sleep(60)
